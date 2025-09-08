@@ -1,15 +1,19 @@
-# 🚀 Learning Timer 🚀
+<div align="center">
+  <h1>🚀 Learning Timer 🚀</h1>
 
-<p align="center">
-  <a href="https://vuejs.org/"><img alt="VueJS" src="https://img.shields.io/badge/Vue.js-3-42b883.svg"></a>
-  <a href="https://vitejs.dev/"><img alt="Vite" src="https://img.shields.io/badge/Vite-5-646cff.svg"></a>
-  <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
-  <a href="CONTRIBUTING.md"><img alt="PRs Welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
-</p>
+  <p>
+    <a href="https://vuejs.org/"><img alt="VueJS" src="https://img.shields.io/badge/Vue.js-3-42b883.svg"></a>
+    <a href="https://vitejs.dev/"><img alt="Vite" src="https://img.shields.io/badge/Vite-5-646cff.svg"></a>
+    <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+    <a href="CONTRIBUTING.md"><img alt="PRs Welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
+  </p>
 
-A simple, clean, and effective timer application designed to boost your productivity and focus during learning or work sessions. Built with **Vue 3** and **Vite**.
+  <p>A simple, clean, and effective timer application designed to boost your productivity and focus during learning or work sessions. Built with <strong>Vue 3</strong> and <strong>Vite</strong>.</p>
 
-> *“Focus on being productive instead of busy.” – Tim Ferriss*
+  <blockquote>
+    <em>“Focus on being productive instead of busy.” – Tim Ferriss</em>
+  </blockquote>
+</div>
 
 ---
 
