@@ -1,10 +1,10 @@
 # 🚀 Learning Timer 🚀
 
 <p align="center">
-  [![VueJS](https://img.shields.io/badge/Vue.js-3-42b883.svg)](https://vuejs.org/)
-  [![Vite](https://img.shields.io/badge/Vite-5-646cff.svg)](https://vitejs.dev/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+  <a href="https://vuejs.org/"><img alt="VueJS" src="https://img.shields.io/badge/Vue.js-3-42b883.svg"></a>
+  <a href="https://vitejs.dev/"><img alt="Vite" src="https://img.shields.io/badge/Vite-5-646cff.svg"></a>
+  <a href="https://opensource.org/licenses/MIT"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <a href="CONTRIBUTING.md"><img alt="PRs Welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
 </p>
 
 A simple, clean, and effective timer application designed to boost your productivity and focus during learning or work sessions. Built with **Vue 3** and **Vite**.
