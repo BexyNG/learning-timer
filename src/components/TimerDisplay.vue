@@ -69,7 +69,7 @@ watch(() => props.pause, (paused) => {
     clearTick()
   } else {
     // resume current run
-    runTick(currentRunId, Date.now(), props.session.duration * 1000 - remaining.value)
+    runTick(currentRunId, Date.now(), props.session.duration * 60 * 1000 - remaining.value)
   }
 })
 
@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
 
 /* ---------- helpers ---------- */
 function startSession(s) {
-  const durationMs = s.duration * 1000
+  const durationMs = s.duration * 60 * 1000
   running.value = true
   progress.value = 0
   remaining.value = durationMs
@@ -113,7 +113,7 @@ function runTick(runId, startAt, elapsedOffset) {
       return
     }
 
-    const total = props.session.duration * 1000
+    const total = props.session.duration * 60 * 1000
     const elapsed = Date.now() - baseStart
     const left = Math.max(0, total - elapsed)
 
