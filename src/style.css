@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+/* Theme Variables */
+:root {
+  --bg: #f0f2f5; /* Slightly cooler grey */
+  --text: #1a1a1a;
+  --card-bg: #ffffff;
+  --accent: #42b883; /* Vue Green */
+  --accent-light: #A7E399;
+  --accent-glow: rgba(167, 227, 153, 0.35);
+  --timer-bg: #e8e4d9;
+  --progress-bg: #e0e0e0;
+  --border-color: #dcdcdc;
+  --button-text: #ffffff;
+  --danger: #e53e3e;
+}
+
+[data-theme='dark'] {
+  --bg: #1a1a1a;
+  --text: #f0f0f0;
+  --card-bg: #2d3748; /* Darker card */
+  --accent: #48bb78; /* Darker Vue Green */
+  --accent-glow: rgba(167, 227, 153, 0.25);
+  --timer-bg: #2a2a2a;
+  --progress-bg: #4a5568; /* Darker progress bg */
+  --border-color: #4a5568;
+  --danger: #c53030;
+}
+
+/* Global Reset + Centering Fix */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Inter', sans-serif; /* New font */
+  background-color: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
+}
+
+* {
+  box-sizing: border-box;
+}
