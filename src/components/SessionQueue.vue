@@ -1,3 +1,5 @@
+
+
 <template>
   <div class="queue-container">
     <h2>📁 Session Queue</h2>
@@ -6,7 +8,7 @@
     <div class="quick-buttons">
       <button @click="quickAdd('Main Topic', 1500)">Main Topic</button>
       <button @click="quickAdd('Misc Topic', 900)">Misc Topic</button>
-      <button @click="quickAdd('Gaming Break', 1800)">Gaming Break</button>
+      <button @click="quickAdd('Break', 1800)">Break</button>
     </div>
 
     <!-- Add Custom Session -->
