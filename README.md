@@ -42,7 +42,7 @@ Want to run the project locally or contribute? Follow the steps below.
 
 ```bash
 # 1️⃣ Clone the repo (replace with your actual repository URL)
-git clone https://github.com/your-username/learning-timer.git
+git clone https://github.com/BexyNG/learning-timer.git
 cd learning-timer
 
 # 2️⃣ Install dependencies
