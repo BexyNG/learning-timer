@@ -238,15 +238,31 @@ function playBeep(freq, duration) {
 
 .progress-bar {
   margin-top: 0.9rem;
-  background: var(--progress-bg);
-  height: 10px;
-  border-radius: 6px;
+  /* The track is now see-through to allow the fill to blend with the container bg */
+  background: transparent;
+  border: 2px solid var(--progress-bg); /* Thicker border for visibility */
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); /* Inset shadow for depth */
+  height: 14px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .fill {
   height: 100%;
-  background-color: var(--accent-light);
+  /* A vibrant, shifting gradient creates a cool "negative" effect with difference blend mode */
+  background: linear-gradient(90deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+  background-size: 200% 100%;
+  mix-blend-mode: difference;
   width: 0%;
   transition: width 0.12s linear;
+  animation: gradient-shift 4s linear infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
 }
 </style>
