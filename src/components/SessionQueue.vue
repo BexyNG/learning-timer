@@ -1,27 +1,26 @@
-
-
+//src/components/SessionQueue.vue
 <template>
   <div class="queue-container">
     <h2>📁 Session Queue</h2>
 
-    <!-- Quick Presets -->
+    <!-- Quick Presets (store minutes, display seconds) -->
     <div class="quick-buttons">
-      <button @click="quickAdd('Main Topic', 1500)">Main Topic</button>
-      <button @click="quickAdd('Misc Topic', 900)">Misc Topic</button>
-      <button @click="quickAdd('Break', 1800)">Break</button>
+      <button @click="quickAdd('Main Topic', 25)">Main Topic</button>
+      <button @click="quickAdd('Misc Topic', 15)">Misc Topic</button>
+      <button @click="quickAdd('Break', 30)">Break</button>
     </div>
 
-    <!-- Add Custom Session -->
+    <!-- Add Custom Session (enter minutes; queue displays seconds) -->
     <form @submit.prevent="addSession" class="add-form">
       <input v-model="name" placeholder="Custom session name" />
-      <input v-model="duration" type="text" placeholder="Seconds" />
+      <input v-model="durationMinutes" type="text" placeholder="Minutes" />
       <button type="submit">＋ Add</button>
     </form>
 
     <!-- Queue List -->
     <ul v-if="queue.length > 0">
       <li v-for="(s, i) in queue" :key="i">
-        {{ s.name }} – {{ s.duration }}s
+        {{ s.name }} – {{ formatDuration(s.duration) }}
       </li>
     </ul>
     <p v-else class="empty">Your queue is empty.</p>
@@ -31,21 +30,31 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 
+/*
+  IMPORTANT:
+  - We store durations in MINUTES (number).
+  - We DISPLAY them in SECONDS (e.g., 5m -> 300s), per your request.
+*/
+
 const queue = ref([])
 const name = ref('')
-const duration = ref('1500')
+const durationMinutes = ref('25') // default minutes
 
-function addSession() {
-  const seconds = parseInt(duration.value)
-  if (!name.value || isNaN(seconds) || seconds <= 0) return
-
-  queue.value.push({ name: name.value.trim(), duration: seconds })
-  name.value = ''
-  duration.value = '1500'
+function formatDuration(minutes) {
+  const secs = Math.round((Number(minutes) || 0) * 60)
+  return `${secs}s`
 }
 
-function quickAdd(label, seconds) {
-  queue.value.push({ name: label, duration: seconds })
+function addSession() {
+  const mins = parseFloat(durationMinutes.value)
+  if (!name.value || isNaN(mins) || mins <= 0) return
+  queue.value.push({ name: name.value.trim(), duration: mins })
+  name.value = ''
+  durationMinutes.value = '25'
+}
+
+function quickAdd(label, minutes) {
+  queue.value.push({ name: label, duration: minutes })
 }
 
 // 💾 Load + Save queue from localStorage

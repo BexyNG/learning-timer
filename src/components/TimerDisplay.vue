@@ -1,8 +1,8 @@
+//src/components/TimerDisplay.vue
 <template>
   <div class="timer-container">
     <div class="session-title">{{ session?.name || 'No Session' }}</div>
 
-    <!-- fixed-size wrap so the panel never shifts -->
     <div class="countdown-wrap">
       <div class="countdown">
         {{ time.hours }}:{{ time.minutes }}:{{ time.seconds }}:{{ time.milliseconds }}
@@ -16,32 +16,34 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  session: Object,
-  onComplete: Function,
-  pause: Boolean,
-  stopped: Boolean
+  session: Object,          // { name, duration (minutes) }
+  onComplete: Function,     // callback for natural completion
+  pause: Boolean,           // pause/resume flag from parent
+  stopped: Boolean          // stop/skip flag from parent (invalidates beeps)
 })
 
-/* ---------- state ---------- */
-const remaining = ref(0)
-const progress  = ref(0)
+/* ============== State ============== */
+const remaining = ref(0)         // ms left
+const progress  = ref(0)         // 0..100
 const running   = ref(false)
 
 let intervalId = null
-let currentRunId = 0              // increments per session start
-let alarmTimeouts = []            // all scheduled alarm setTimeout ids
+let currentRunId = 0             // increases every time a new session starts
+let invalidRunIds = new Set()    // runs that were stopped/skipped (no alarm)
+let alarmTimeouts = []           // timeouts scheduled for current alarm sequence
 let audioCtx = null
+let audioUnlocked = false
 
-/* ---------- derived time ---------- */
+/* ============== Derived Time ============== */
 const time = computed(() => {
-  const ms = remaining.value % 1000
-  const totalSec = Math.floor(remaining.value / 1000)
-  const sec = totalSec % 60
-  const min = Math.floor(totalSec / 60) % 60
-  const hrs = Math.floor(totalSec / 3600)
+  const ms   = Math.max(0, remaining.value) % 1000
+  const tSec = Math.max(0, Math.floor(remaining.value / 1000))
+  const sec  = tSec % 60
+  const min  = Math.floor(tSec / 60) % 60
+  const hrs  = Math.floor(tSec / 3600)
   return {
     hours: String(hrs).padStart(2, '0'),
     minutes: String(min).padStart(2, '0'),
@@ -50,13 +52,103 @@ const time = computed(() => {
   }
 })
 
-/* ---------- watchers ---------- */
-watch(() => props.session, (s, prev) => {
-  // cancel any previous run when session changes
-  invalidateRun()
-  if (s && s.duration > 0) {
-    startSession(s)
-  } else {
+/* ============== Audio Unlock (crucial for mobile/Chrome) ============== */
+function ensureAudioUnlocked() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  if (audioCtx.state === 'suspended') {
+    return audioCtx.resume().then(() => (audioUnlocked = true))
+  }
+  audioUnlocked = true
+  return Promise.resolve()
+}
+
+function gestureUnlock() {
+  ensureAudioUnlocked().finally(() => {
+    if (audioUnlocked) {
+      window.removeEventListener('pointerdown', gestureUnlock, { capture: true })
+      window.removeEventListener('keydown', gestureUnlock, { capture: true })
+      window.removeEventListener('touchstart', gestureUnlock, { capture: true })
+    }
+  })
+}
+
+onMounted(() => {
+  // unlock as soon as the user interacts with the page
+  window.addEventListener('pointerdown', gestureUnlock, { capture: true })
+  window.addEventListener('keydown', gestureUnlock, { capture: true })
+  window.addEventListener('touchstart', gestureUnlock, { capture: true })
+})
+
+/* ============== Core: Start / Tick / Complete ============== */
+function startSession(s) {
+  clearTick()
+  cancelAllAlarms()
+
+  if (!s || !s.duration) {
+    running.value = false
+    remaining.value = 0
+    progress.value = 0
+    return
+  }
+
+  const durationMs = Math.max(0, s.duration * 60 * 1000)
+  running.value = true
+  remaining.value = durationMs
+  progress.value = 0
+
+  currentRunId += 1
+  const runId = currentRunId
+
+  const startedAt = Date.now()
+  runTick(runId, startedAt, 0)
+}
+
+function runTick(runId, startAt, carriedElapsed) {
+  const tick = () => {
+    if (invalidRunIds.has(runId)) return clearTick()
+
+    const now = Date.now()
+    const durationMs = props.session ? props.session.duration * 60 * 1000 : 0
+    const elapsed = (now - startAt) + carriedElapsed
+    const left = Math.max(0, durationMs - elapsed)
+    remaining.value = left
+    progress.value = durationMs > 0 ? Math.min(100, (elapsed / durationMs) * 100) : 0
+
+    if (left <= 0) {
+      // natural completion
+      clearTick()
+      running.value = false
+
+      if (!invalidRunIds.has(runId)) {
+        playAlarmForRun(runId)
+        if (typeof props.onComplete === 'function') props.onComplete()
+      }
+      return
+    }
+  }
+
+  clearTick()
+  intervalId = setInterval(tick, 10)
+}
+
+function clearTick() {
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+
+/* ============== Invalidation (Skip/Stop) ============== */
+function invalidateRun() {
+  if (currentRunId) invalidRunIds.add(currentRunId)
+  cancelAllAlarms()
+}
+
+/* ============== Watchers ============== */
+watch(() => props.session, (s) => {
+  if (s) startSession(s)
+  else {
+    clearTick()
     running.value = false
     remaining.value = 0
     progress.value = 0
@@ -68,127 +160,94 @@ watch(() => props.pause, (paused) => {
   if (paused) {
     clearTick()
   } else {
-    // resume current run
-    runTick(currentRunId, Date.now(), props.session.duration * 60 * 1000 - remaining.value)
+    const durationMs = props.session.duration * 60 * 1000
+    const elapsed = durationMs - remaining.value
+    runTick(currentRunId, Date.now(), elapsed)
   }
 })
 
-watch(() => props.stopped, (shouldStop) => {
-  if (!shouldStop) return
-  // external stop/clear: invalidate run and reset visuals
-  invalidateRun()
-  running.value = false
-  remaining.value = 0
-  progress.value = 0
+watch(() => props.stopped, (stopped) => {
+  if (stopped) {
+    invalidateRun()
+    clearTick()
+    running.value = false
+  }
 })
 
 onBeforeUnmount(() => {
   invalidateRun()
-})
-
-/* ---------- helpers ---------- */
-function startSession(s) {
-  const durationMs = s.duration * 60 * 1000
-  running.value = true
-  progress.value = 0
-  remaining.value = durationMs
-
-  // new run id
-  currentRunId += 1
-  const runId = currentRunId
-
-  // start ticking
-  runTick(runId, Date.now(), 0)
-}
-
-function runTick(runId, startAt, elapsedOffset) {
-  clearTick() // ensure single interval
-
-  const baseStart = startAt - elapsedOffset
-
-  intervalId = setInterval(() => {
-    // if run was invalidated (skip/stop/new session), bail out
-    if (runId !== currentRunId) {
-      clearTick()
-      return
-    }
-
-    const total = props.session.duration * 60 * 1000
-    const elapsed = Date.now() - baseStart
-    const left = Math.max(0, total - elapsed)
-
-    remaining.value = left
-    progress.value = Math.min(100, (elapsed / total) * 100)
-
-    if (left <= 0) {
-      // natural completion for this exact run
-      clearTick()
-      if (runId === currentRunId) {
-        playAlarmForRun(runId)     // alarm only on natural completion
-        props.onComplete && props.onComplete()
-      }
-    }
-  }, 10)
-}
-
-function clearTick() {
-  if (intervalId) {
-    clearInterval(intervalId)
-    intervalId = null
-  }
-}
-
-function invalidateRun() {
-  // bump run id so any pending tick or alarm callbacks are ignored
-  currentRunId += 1
   clearTick()
   cancelAllAlarms()
-}
+})
 
-/* ---------- alarm (guarded by runId) ---------- */
+/* ============== Alarm Logic (slower, louder, crescendo) ============== */
 function playAlarmForRun(runId) {
-  // safety: if run already invalidated, do nothing
-  if (runId !== currentRunId) return
-
   cancelAllAlarms()
 
-  const tones = [800, 1200, 1600]
-  const durations = [500, 700, 900]
-
-  // ensure audio context is created after a user gesture (browser policy)
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-
-  tones.forEach((freq, i) => {
-    const tId = setTimeout(() => {
-      // check again: only play if this run is still current
-      if (runId !== currentRunId) return
-      playBeep(freq, durations[i])
-    }, i * 1000)
-    alarmTimeouts.push(tId)
+  ensureAudioUnlocked().finally(() => {
+    // Slower cadence + obvious crescendo (each beep louder and a bit longer)
+    // Each entry: start at t (ms), frequency f (Hz), duration d (ms), peak gain g (0..1)
+    const plan = [
+      { t: 0,    f: 520, d: 520, g: 0.55 }, // 1st: clear & audible
+      { t: 800,  f: 700, d: 600, g: 0.75 }, // 2nd: louder
+      { t: 1700, f: 920, d: 680, g: 0.92 }, // 3rd: loudest
+    ]
+    for (const { t, f, d, g } of plan) {
+      const id = setTimeout(() => {
+        if (invalidRunIds.has(runId)) return
+        playBeep(f, d, g)
+      }, t)
+      alarmTimeouts.push(id)
+    }
   })
 }
 
 function cancelAllAlarms() {
   alarmTimeouts.forEach(id => clearTimeout(id))
-  alarmTimeouts = []
+  alarmTimeouts.length = 0
 }
 
-function playBeep(freq, duration) {
+// Punchy tone with filter and envelope; 'peak' controls loudness safely.
+function playBeep(freq = 660, duration = 400, peak = 0.7) {
   try {
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.connect(gain)
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+
+    const osc   = audioCtx.createOscillator()
+    const gain  = audioCtx.createGain()
+    const filter = audioCtx.createBiquadFilter()
+
+    // Slightly tame harshness while keeping presence
+    filter.type = 'lowpass'
+    filter.frequency.value = Math.min(14000, freq * 10)
+
+    // Chain: osc -> filter -> gain -> destination
+    osc.connect(filter)
+    filter.connect(gain)
     gain.connect(audioCtx.destination)
-    osc.type = 'sine'
-    osc.frequency.value = freq
-    // subtle fade to reduce clicks
+
+    // Square wave is naturally louder; switch to 'triangle' if too sharp
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime)
+
+    // ADSR envelope for punch + smooth tail
     const now = audioCtx.currentTime
+    const attack = 0.03
+    const hold   = Math.max(0, (duration / 1000) - (attack + 0.15))
+    const release = 0.15
+
+    const safePeak = Math.min(0.98, Math.max(0.05, peak)) // safety cap against clipping
+    gain.gain.cancelScheduledValues(now)
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(0.4, now + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000)
+    gain.gain.linearRampToValueAtTime(safePeak, now + attack)                 // attack
+    gain.gain.setValueAtTime(safePeak, now + attack + hold)                   // hold
+    gain.gain.linearRampToValueAtTime(0.0001, now + attack + hold + release)  // release
+
     osc.start(now)
-    osc.stop(now + duration / 1000 + 0.02)
-  } catch {}
+    osc.stop(now + attack + hold + release + 0.02)
+  } catch (e) {
+    console.warn('Audio error', e)
+  }
 }
 </script>
 
@@ -202,67 +261,44 @@ function playBeep(freq, duration) {
 }
 
 .session-title {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-  color: var(--text);
-  font-family: 'Roboto Mono', ui-monospace, Menlo, Monaco, Consolas,
-               'Liberation Mono', 'Courier New', monospace;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-shadow:
-    0 1px 3px rgba(0,0,0,0.12), 0 0 8px var(--accent-glow);
+  font-size: 1.1rem;
+  margin-bottom: 0.6rem;
+  opacity: 0.9;
 }
 
-/* keep panel stable */
 .countdown-wrap {
   display: grid;
   place-items: center;
-  min-height: 78px;
+  min-height: 140px;
 }
 
 .countdown {
-  font-family: 'Roboto Mono', ui-monospace, Menlo, Monaco, Consolas,
-               'Liberation Mono', 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1, "zero" 1;
-  font-size: 3rem;
-  line-height: 1;
-  letter-spacing: 2px;
-  color: var(--text);
-  /* subtle glow */
-  text-shadow:
-    0 2px 8px rgba(0,0,0,0.15), 0 0 12px var(--accent-glow);
-  display: inline-block;
-  min-width: 11ch; /* 00:00:00:00 */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 3.2rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 10px var(--accent-glow);
 }
 
 .progress-bar {
-  margin-top: 0.9rem;
-  /* The track is now see-through to allow the fill to blend with the container bg */
-  background: transparent;
-  border: 2px solid var(--progress-bg); /* Thicker border for visibility */
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); /* Inset shadow for depth */
-  height: 14px;
+  height: 12px;
   border-radius: 8px;
+  background: var(--progress-bg);
   overflow: hidden;
+  margin-top: 1rem;
+  position: relative;
 }
-.fill {
+
+.progress-bar .fill {
   height: 100%;
-  /* A vibrant, shifting gradient creates a cool "negative" effect with difference blend mode */
-  background: linear-gradient(90deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
-  background-size: 200% 100%;
-  mix-blend-mode: difference;
   width: 0%;
   transition: width 0.12s linear;
+  background: linear-gradient(90deg, var(--accent-light), var(--accent));
+  background-size: 200% 100%;
   animation: gradient-shift 4s linear infinite;
 }
 
 @keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 200% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
 </style>
