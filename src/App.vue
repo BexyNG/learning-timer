@@ -1,16 +1,16 @@
+//src/App.vue
 <template>
   <div class="app-card">
     <header class="header">
-      <h1>🎯CIA Type Learning Timer</h1>
+      <h1>🎯 CIA Type Learning Timer</h1>
       <button @click="isDarkMode = !isDarkMode" class="theme-toggle">
         {{ isDarkMode ? '☀️' : '🌙' }}
       </button>
     </header>
 
-    <!-- ✅ Timer + Queue side-by-side (your preferred iteration) -->
+    <!-- Timer + Queue side-by-side -->
     <div class="app-content">
       <section class="timer-section">
-        <!-- Holder prevents the whole section from shifting when digits animate -->
         <div class="timer-holder">
           <TimerDisplay
             :key="key"
@@ -23,7 +23,6 @@
       </section>
 
       <section class="queue-section">
-        <!-- Scroll container keeps the page from being pushed upward when many items are added -->
         <div class="queue-scroll">
           <SessionQueue ref="queueRef" />
         </div>
@@ -66,7 +65,7 @@ watch(isDarkMode, (val) => {
 })
 document.documentElement.setAttribute('data-theme', isDarkMode.value ? 'dark' : 'light')
 
-// ⏱ Controls
+// ============== Controls ==============
 function startQueue() {
   const next = queueRef.value?.popNext?.()
   if (next) {
@@ -92,11 +91,13 @@ function nextSession() {
     key.value++
   }
 
+  // Skip = load immediately
   if (skipImmediate) {
     skipImmediate = false
     loadNext()
   } else {
-    setTimeout(loadNext, 10000) // default 10s between sessions
+    // Wait a few seconds after alarm before auto-start
+    setTimeout(loadNext, 3000) // 3s gap after beeps
   }
 }
 
@@ -151,7 +152,7 @@ function clearQueue() {
   cursor: pointer;
 }
 
-/* ============== Layout ============== */
+/* Layout */
 .app-content {
   display: flex;
   flex-direction: row;
@@ -161,31 +162,24 @@ function clearQueue() {
   align-items: flex-start;
 }
 
-/* Keep both columns balanced and responsive */
 .timer-section,
 .queue-section {
   flex: 1 1 420px;
   min-width: 300px;
 }
 
-/* Prevent section jumping when numbers animate in TimerDisplay */
 .timer-holder {
-  /* lock a sensible height for the timer panel area */
-  min-height: 300px;          /* adjust if your TimerDisplay is taller/shorter */
-  display: grid;              /* center the card within this reserved space */
+  min-height: 300px;
+  display: grid;
   place-items: center;
 }
 
-/* Queue overflow handling:
-   - after ~6 items, inner content scrolls
-   - keeps page height stable and avoids pushing the whole app upward */
 .queue-scroll {
-  max-height: 420px;          /* fits roughly ~6 items + inputs/buttons */
+  max-height: 420px;
   overflow-y: auto;
-  padding-right: 0.25rem;     /* breathing room for scrollbar */
+  padding-right: 0.25rem;
 }
 
-/* Fine-tune native scrollbars (optional) */
 .queue-scroll::-webkit-scrollbar {
   width: 8px;
 }
@@ -194,7 +188,6 @@ function clearQueue() {
   border-radius: 8px;
 }
 
-/* Controls pinned visually to the bottom of the card */
 .controls-section {
   margin-top: 1.5rem;
   display: flex;
@@ -205,7 +198,6 @@ function clearQueue() {
   padding-top: 1rem;
 }
 
-/* Small screens: stack vertically cleanly */
 @media (max-width: 640px) {
   .timer-holder { min-height: 260px; }
   .queue-scroll { max-height: 360px; }
